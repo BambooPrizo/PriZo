@@ -8,9 +8,12 @@ export interface User {
   points: number;
 }
 
+// Types de véhicules disponibles sur le marché VTC d'Abidjan
+export type VehicleType = 'moto' | 'eco' | 'standard' | 'confort' | 'premium' | 'berline' | 'luxe';
+
 export interface PriceResult {
   provider: string;
-  vehicle_type: 'moto' | 'standard' | 'premium';
+  vehicle_type: VehicleType;
   price_min: number;
   price_max: number;
   currency: string;
@@ -34,7 +37,7 @@ export interface PricesResponse {
 
 export interface Contribution {
   provider: string;
-  vehicle_type: 'moto' | 'standard' | 'premium';
+  vehicle_type: VehicleType;
   price_observed: number;
   currency: string;
   from_lat: number;

@@ -14,42 +14,13 @@ import { Ionicons } from '@expo/vector-icons';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { AppStackParamList } from '../navigation/AppNavigator';
+import { FREQUENT_ROUTES, RECENT_CONTRIBUTIONS, isPeakHour, VTC_PROVIDERS } from '../data/vtcData';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
-// Trajets fréquents prédéfinis
-const FREQUENT_ROUTES = [
-  {
-    label: 'Cocody → Plateau',
-    from: { lat: 5.3364, lng: -3.9746, label: 'Cocody' },
-    to: { lat: 5.3217, lng: -4.0195, label: 'Plateau' },
-  },
-  {
-    label: 'Yopougon → Abobo',
-    from: { lat: 5.3189, lng: -4.0685, label: 'Yopougon' },
-    to: { lat: 5.4167, lng: -4.0167, label: 'Abobo' },
-  },
-  {
-    label: 'Marcory → Treichville',
-    from: { lat: 5.3025, lng: -3.9857, label: 'Marcory' },
-    to: { lat: 5.2923, lng: -4.0024, label: 'Treichville' },
-  },
-  {
-    label: 'Riviera → Zone 4',
-    from: { lat: 5.3562, lng: -3.9608, label: 'Riviera' },
-    to: { lat: 5.3167, lng: -4.0000, label: 'Zone 4' },
-  },
-];
-
-// Dernières contributions simulées
-const RECENT_CONTRIBUTIONS = [
-  { provider: 'Yango', price: 1200, zone: 'Cocody → Plateau', time: '5 min' },
-  { provider: 'Heetch', price: 950, zone: 'Yopougon → Abobo', time: '12 min' },
-  { provider: 'Uber', price: 1500, zone: 'Marcory → Zone 4', time: '20 min' },
-];
-
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const isPeak = isPeakHour();
 
   const [fromLabel, setFromLabel] = useState('');
   const [toLabel, setToLabel] = useState('');
@@ -58,8 +29,8 @@ const HomeScreen: React.FC = () => {
   const [error, setError] = useState('');
 
   const handleSelectRoute = (route: (typeof FREQUENT_ROUTES)[0]) => {
-    setFromLabel(route.from.label);
-    setToLabel(route.to.label);
+    setFromLabel(route.from.name);
+    setToLabel(route.to.name);
     setFromCoords({ lat: route.from.lat, lng: route.from.lng });
     setToCoords({ lat: route.to.lat, lng: route.to.lng });
   };
@@ -184,7 +155,7 @@ const HomeScreen: React.FC = () => {
             <View key={index} style={styles.contributionCard}>
               <View style={styles.contributionLeft}>
                 <Text style={styles.contributionProvider}>{contribution.provider}</Text>
-                <Text style={styles.contributionZone}>{contribution.zone}</Text>
+                <Text style={styles.contributionZone}>{contribution.zone_from} → {contribution.zone_to}</Text>
               </View>
               <View style={styles.contributionRight}>
                 <Text style={styles.contributionPrice}>

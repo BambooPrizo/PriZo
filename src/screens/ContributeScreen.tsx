@@ -15,14 +15,17 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { AppStackParamList } from '../navigation/AppNavigator';
 import contributionService from '../services/contributionService';
+import { VTC_PROVIDERS, ZONES_ABIDJAN } from '../data/vtcData';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Contribute'>;
 
-const PROVIDERS = ['Yango', 'Heetch', 'Uber', 'Taxi Compteur'];
+// Utilisation des vrais fournisseurs VTC d'Abidjan
+const PROVIDERS = VTC_PROVIDERS.map(p => p.name);
 const VEHICLE_TYPES = [
   { key: 'moto', label: '🏍️ Moto', icon: 'bicycle' },
   { key: 'standard', label: '🚗 Standard', icon: 'car' },
   { key: 'premium', label: '⭐ Premium', icon: 'car-sport' },
+  { key: 'confort', label: '🛋️ Confort', icon: 'car' },
 ];
 
 const ContributeScreen: React.FC<Props> = ({ route, navigation }) => {

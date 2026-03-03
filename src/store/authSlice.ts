@@ -19,6 +19,12 @@ const defaultUser: User = {
   points: 150,
 };
 
+// Identifiants de test
+const TEST_CREDENTIALS = {
+  phone: '+225 07 12 34 56 78',
+  password: 'prizo2026',
+};
+
 const initialState: AuthState = {
   user: defaultUser,
   token: 'test_token_demo_mode',
@@ -30,13 +36,24 @@ const initialState: AuthState = {
 export const login = createAsyncThunk(
   'auth/login',
   async ({ phone, password }: { phone: string; password: string }, { rejectWithValue }) => {
+    // Mode démo : accepter les identifiants de test
+    const normalizedPhone = phone.replace(/\s/g, '');
+    const testPhone = TEST_CREDENTIALS.phone.replace(/\s/g, '');
+    
+    if (normalizedPhone === testPhone && password === TEST_CREDENTIALS.password) {
+      return {
+        user: defaultUser,
+        token: 'test_token_demo_mode',
+      };
+    }
+    
     try {
       const response = await authService.login(phone, password);
       // Stocker le token de manière sécurisée
       await SecureStore.setItemAsync('auth_token', response.token);
       return response;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error?.message || 'Erreur de connexion');
+      return rejectWithValue(error.response?.data?.error?.message || 'Identifiants incorrects');
     }
   }
 );

@@ -2,7 +2,8 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { PriceResult, RouteParams } from '../types';
 import pricesService from '../services/pricesService';
 
-export type VehicleFilter = 'all' | 'moto' | 'standard' | 'premium';
+// Types de véhicules VTC disponibles à Abidjan
+export type VehicleFilter = 'all' | 'moto' | 'eco' | 'standard' | 'confort' | 'premium' | 'berline' | 'luxe';
 export type SortType = 'price' | 'duration';
 
 interface PricesState {

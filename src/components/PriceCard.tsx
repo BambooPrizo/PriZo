@@ -49,13 +49,21 @@ const PriceCard: React.FC<PriceCardProps> = ({
 
   const badge = getConfidenceBadge();
 
-  // Label du type de véhicule
+  // Label du type de véhicule (adapté aux VTC Abidjan)
   const getVehicleLabel = () => {
     switch (vehicle_type) {
       case 'moto':
         return '🏍️ Moto';
+      case 'eco':
+        return '💰 Éco';
+      case 'confort':
+        return '🛋️ Confort';
       case 'premium':
         return '⭐ Premium';
+      case 'berline':
+        return '🚘 Berline';
+      case 'luxe':
+        return '✨ Luxe';
       default:
         return '🚗 Standard';
     }
