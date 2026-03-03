@@ -1,15 +1,17 @@
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PriceResult } from '../types';
 import ConfidenceIndicator from './ConfidenceIndicator';
+import { formatTimeAgo, formatPriceRange, getConfidenceBadge } from '../utils';
+import { COLORS, TOUCH_TARGET } from '../constants';
 
 interface PriceCardProps extends PriceResult {
   onPress: () => void;
   isLowest?: boolean;
 }
 
-const PriceCard: React.FC<PriceCardProps> = ({
+const PriceCard: React.FC<PriceCardProps> = memo(({
   provider,
   vehicle_type,
   price_min,
@@ -21,36 +23,10 @@ const PriceCard: React.FC<PriceCardProps> = ({
   onPress,
   isLowest = false,
 }) => {
-  // Calcul du temps écoulé
-  const getTimeAgo = (dateStr: string) => {
-    const now = new Date();
-    const updated = new Date(dateStr);
-    const diffMs = now.getTime() - updated.getTime();
-    const diffMin = Math.floor(diffMs / 60000);
-
-    if (diffMin < 1) return "À l'instant";
-    if (diffMin === 1) return 'Il y a 1 min';
-    if (diffMin < 60) return `Il y a ${diffMin} min`;
-    const diffHours = Math.floor(diffMin / 60);
-    if (diffHours === 1) return 'Il y a 1h';
-    if (diffHours < 24) return `Il y a ${diffHours}h`;
-    return 'Il y a plus de 24h';
-  };
-
-  // Badge de confiance
-  const getConfidenceBadge = () => {
-    if (confidence_score > 0.8) {
-      return { label: 'Fiable', color: '#22C55E', bgColor: '#22C55E20' };
-    } else if (confidence_score >= 0.5) {
-      return { label: 'Indicatif', color: '#F97316', bgColor: '#F9731620' };
-    }
-    return { label: 'Estimation', color: '#6B7280', bgColor: '#6B728020' };
-  };
-
-  const badge = getConfidenceBadge();
+  const badge = getConfidenceBadge(confidence_score);
 
   // Label du type de véhicule (adapté aux VTC Abidjan)
-  const getVehicleLabel = () => {
+  const getVehicleLabel = useCallback(() => {
     switch (vehicle_type) {
       case 'moto':
         return '🏍️ Moto';
@@ -67,13 +43,20 @@ const PriceCard: React.FC<PriceCardProps> = ({
       default:
         return '🚗 Standard';
     }
-  };
+  }, [vehicle_type]);
+
+  // Accessibilité : description complète de la carte
+  const accessibilityLabel = `${provider}, ${getVehicleLabel()}, ${formatPriceRange(price_min, price_max)}, durée estimée ${estimated_duration_min} minutes, ${badge.label}${isLowest ? ', meilleur prix' : ''}`;
 
   return (
-    <View style={styles.card}>
+    <View 
+      style={styles.card}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+    >
       {/* Badge meilleur prix */}
       {isLowest && (
-        <View style={styles.lowestBadge}>
+        <View style={styles.lowestBadge} accessibilityElementsHidden>
           <Text style={styles.lowestBadgeText}>Meilleur prix 🏆</Text>
         </View>
       )}
@@ -94,7 +77,7 @@ const PriceCard: React.FC<PriceCardProps> = ({
       {/* Prix */}
       <View style={styles.priceContainer}>
         <Text style={styles.price}>
-          {price_min.toLocaleString()} — {price_max.toLocaleString()}
+          {price_min.toLocaleString('fr-CI')} — {price_max.toLocaleString('fr-CI')}
         </Text>
         <Text style={styles.currency}>{currency}</Text>
       </View>
@@ -102,31 +85,47 @@ const PriceCard: React.FC<PriceCardProps> = ({
       {/* Infos supplémentaires */}
       <View style={styles.infoRow}>
         <View style={styles.infoItem}>
-          <Ionicons name="time-outline" size={16} color="#94A3B8" />
+          <Ionicons name="time-outline" size={16} color={COLORS.textSecondary} />
           <Text style={styles.infoText}>{estimated_duration_min} min</Text>
         </View>
-        <Text style={styles.timestamp}>{getTimeAgo(last_updated)}</Text>
+        <Text style={styles.timestamp}>{formatTimeAgo(last_updated)}</Text>
       </View>
 
       {/* Indicateur de confiance */}
       <ConfidenceIndicator score={confidence_score} showLabel={false} />
 
       {/* Bouton Réserver */}
-      <TouchableOpacity style={styles.bookButton} onPress={onPress} activeOpacity={0.8}>
+      <TouchableOpacity 
+        style={styles.bookButton} 
+        onPress={onPress} 
+        activeOpacity={0.8}
+        accessibilityLabel={`Réserver avec ${provider}`}
+        accessibilityRole="button"
+        accessibilityHint="Ouvre l'application du fournisseur"
+      >
         <Text style={styles.bookButtonText}>Réserver</Text>
-        <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+        <Ionicons name="arrow-forward" size={18} color={COLORS.white} />
       </TouchableOpacity>
     </View>
   );
-};
+}, (prevProps, nextProps) => {
+  // Comparaison personnalisée pour éviter les re-rendus inutiles
+  return (
+    prevProps.provider === nextProps.provider &&
+    prevProps.price_min === nextProps.price_min &&
+    prevProps.price_max === nextProps.price_max &&
+    prevProps.confidence_score === nextProps.confidence_score &&
+    prevProps.isLowest === nextProps.isLowest
+  );
+});
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1E293B',
+    backgroundColor: COLORS.backgroundCard,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -136,14 +135,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -8,
     right: 16,
-    backgroundColor: '#22C55E',
+    backgroundColor: COLORS.success,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
     zIndex: 1,
   },
   lowestBadgeText: {
-    color: '#FFFFFF',
+    color: COLORS.white,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -154,12 +153,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   provider: {
-    color: '#F1F5F9',
+    color: COLORS.textPrimary,
     fontSize: 20,
     fontWeight: '700',
   },
   vehicleType: {
-    color: '#94A3B8',
+    color: COLORS.textSecondary,
     fontSize: 13,
     marginTop: 2,
   },
@@ -178,12 +177,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   price: {
-    color: '#F97316',
+    color: COLORS.primary,
     fontSize: 28,
     fontWeight: '800',
   },
   currency: {
-    color: '#F97316',
+    color: COLORS.primary,
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
@@ -199,25 +198,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   infoText: {
-    color: '#94A3B8',
+    color: COLORS.textSecondary,
     fontSize: 14,
     marginLeft: 6,
   },
   timestamp: {
-    color: '#64748B',
+    color: COLORS.textMuted,
     fontSize: 12,
   },
   bookButton: {
-    backgroundColor: '#F97316',
+    backgroundColor: COLORS.primary,
     borderRadius: 10,
     paddingVertical: 14,
+    minHeight: TOUCH_TARGET.minSize, // Accessibilité : zone cliquable minimum 44px
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 12,
   },
   bookButtonText: {
-    color: '#FFFFFF',
+    color: COLORS.white,
     fontSize: 16,
     fontWeight: '600',
     marginRight: 8,

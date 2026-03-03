@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
+  FlatList,
   ScrollView,
   TouchableOpacity,
   RefreshControl,
@@ -15,11 +16,15 @@ import { Ionicons } from '@expo/vector-icons';
 import PriceCard from '../components/PriceCard';
 import SkeletonCard from '../components/ui/SkeletonCard';
 import Button from '../components/ui/Button';
+import OfflineBanner from '../components/OfflineBanner';
+import PeakHourBanner from '../components/PeakHourBanner';
 import { useAppDispatch, useAppSelector } from '../store';
 import { fetchPrices, setFilter, VehicleFilter } from '../store/pricesSlice';
 import { AppStackParamList } from '../navigation/AppNavigator';
 import { PriceResult } from '../types';
 import { getPricesForRoute, VTC_PROVIDERS } from '../data/vtcData';
+import { useNetworkStatus } from '../hooks';
+import { COLORS, MESSAGES } from '../constants';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'SearchResults'>;
 
@@ -35,9 +40,11 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
   const { from_lat, from_lng, to_lat, to_lng, from_label, to_label } = route.params;
   const dispatch = useAppDispatch();
   const { results, isLoading, error, activeFilter } = useAppSelector((state) => state.prices);
+  const { isOffline } = useNetworkStatus();
 
   const [refreshing, setRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<'price' | 'duration'>('price');
+  const [isOfflineData, setIsOfflineData] = useState(false);
 
   const loadPrices = useCallback(() => {
     dispatch(
@@ -56,17 +63,17 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
     loadPrices();
   }, [loadPrices]);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadPrices();
     setRefreshing(false);
-  };
+  }, [loadPrices]);
 
-  const handleFilterChange = (filter: VehicleFilter) => {
+  const handleFilterChange = useCallback((filter: VehicleFilter) => {
     dispatch(setFilter(filter));
-  };
+  }, [dispatch]);
 
-  const handleDeeplink = async (deeplink: string) => {
+  const handleDeeplink = useCallback(async (deeplink: string) => {
     try {
       const supported = await Linking.canOpenURL(deeplink);
       if (supported) {
@@ -78,7 +85,7 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
     } catch (err) {
       console.error('Erreur ouverture deeplink:', err);
     }
-  };
+  }, []);
 
   // Filtrer et trier les résultats
   const getFilteredResults = (): PriceResult[] => {
@@ -142,17 +149,43 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const displayResults = results.length > 0 ? filteredResults : realResults.filter(r => activeFilter === 'all' || r.vehicle_type === activeFilter);
 
+  // Rendu des items pour FlatList avec useCallback pour performance
+  const renderPriceCard = useCallback(({ item, index }: { item: PriceResult; index: number }) => (
+    <PriceCard
+      key={`${item.provider}-${item.vehicle_type}-${index}`}
+      {...item}
+      onPress={() => handleDeeplink(item.deeplink)}
+      isLowest={lowestPriceId?.provider === item.provider && lowestPriceId?.vehicle_type === item.vehicle_type}
+    />
+  ), [lowestPriceId, handleDeeplink]);
+
+  // getItemLayout pour optimisation FlatList
+  const getItemLayout = useCallback((_: any, index: number) => ({
+    length: 200, // hauteur approximative d'une PriceCard
+    offset: 200 * index,
+    index,
+  }), []);
+
+  // Key extractor
+  const keyExtractor = useCallback((item: PriceResult, index: number) => 
+    `${item.provider}-${item.vehicle_type}-${index}`, []);
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      
+      {/* Bandeau hors ligne */}
+      <OfflineBanner visible={isOffline || isOfflineData} />
 
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
+          accessibilityLabel="Retour"
+          accessibilityRole="button"
         >
-          <Ionicons name="arrow-back" size={24} color="#F1F5F9" />
+          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.routeText}>
@@ -162,11 +195,20 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
         </View>
         <View style={styles.headerRight} />
       </View>
+      
+      {/* Bandeau heure de pointe */}
+      <View style={styles.peakBannerContainer}>
+        <PeakHourBanner />
+      </View>
 
       {/* Filtres */}
       <View style={styles.filtersContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {FILTERS.map((filter) => (
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={FILTERS}
+          keyExtractor={(item) => item.key}
+          renderItem={({ item: filter }) => (
             <TouchableOpacity
               key={filter.key}
               style={[
@@ -184,8 +226,8 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
                 {filter.label}
               </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          )}
+        />
         <View style={styles.sortContainer}>
           <TouchableOpacity
             style={[styles.sortButton, sortBy === 'price' && styles.sortButtonActive]}
@@ -316,6 +358,10 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     width: 40,
+  },
+  peakBannerContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
   filtersContainer: {
     flexDirection: 'row',
