@@ -9,7 +9,7 @@ export interface User {
 }
 
 // Types de véhicules disponibles sur le marché VTC d'Abidjan
-export type VehicleType = 'moto' | 'eco' | 'standard' | 'confort' | 'premium' | 'berline' | 'luxe';
+export type VehicleType = 'moto' | 'standard' | 'confort' | 'premium';
 
 export interface PriceResult {
   provider: string;
@@ -17,11 +17,43 @@ export interface PriceResult {
   price_min: number;
   price_max: number;
   currency: string;
-  estimated_duration_min: number;
   deeplink: string;
   price_source: 'manual' | 'crowdsourced' | 'api';
-  last_updated: string;
-  confidence_score: number;
+  last_updated: string;         // ISO timestamp
+  confidence_score: number;     // 0 à 1, usage interne uniquement
+}
+
+// Types pour l'estimation du temps d'attente
+export type TimeSlot = 'PEAK_MORNING' | 'PEAK_EVENING' | 'NIGHT' | 'NORMAL';
+export type ZoneDensity = 'HIGH' | 'MEDIUM' | 'LOW';
+
+export interface WaitingTimeEstimate {
+  min: number;
+  max: number;
+  slot: TimeSlot;
+  zone: ZoneDensity;
+  label: string;               // ex: "2 à 5 min"
+  isNight: boolean;
+  isPeak: boolean;
+}
+
+// Props pour le composant PriceCard
+export interface PriceCardProps {
+  result: PriceResult;
+  isLowest: boolean;           // true = meilleur prix
+  lowestPrice: number;         // prix min du moins cher (pour calcul économie)
+  fromLat: number;             // coordonnées départ pour temps d'attente
+  fromLng: number;
+  onPress: () => void;         // redirection deeplink
+  index?: number;              // pour animation échelonnée
+}
+
+// Résultat du formatage de fraîcheur
+export interface FreshnessResult {
+  label: string;
+  color: string;
+  icon: string;
+  isOld: boolean;
 }
 
 export interface PricesMeta {

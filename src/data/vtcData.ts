@@ -66,19 +66,19 @@ export const VTC_PROVIDERS = [
 
 // Zones d'Abidjan avec coordonnées
 export const ZONES_ABIDJAN = {
-  cocody: { name: 'Cocody', lat: 5.3484, lng: -3.9913 },
-  plateau: { name: 'Plateau', lat: 5.3197, lng: -4.0167 },
-  yopougon: { name: 'Yopougon', lat: 5.3483, lng: -4.0736 },
-  marcory: { name: 'Marcory', lat: 5.3021, lng: -3.9856 },
-  abobo: { name: 'Abobo', lat: 5.4167, lng: -4.0167 },
-  adjame: { name: 'Adjamé', lat: 5.3500, lng: -4.0333 },
-  treichville: { name: 'Treichville', lat: 5.2923, lng: -4.0024 },
-  koumassi: { name: 'Koumassi', lat: 5.2967, lng: -3.9567 },
-  portBouet: { name: 'Port-Bouët', lat: 5.2567, lng: -3.9267 },
-  bingerville: { name: 'Bingerville', lat: 5.3567, lng: -3.8833 },
-  angre: { name: 'Angré', lat: 5.3750, lng: -3.9700 },
-  riviera: { name: 'Riviera', lat: 5.3650, lng: -3.9600 },
-  aeroport: { name: 'Aéroport FHB', lat: 5.2577, lng: -3.9290 },
+  cocody: { name: 'Cocody', address: 'Cocody, Abidjan', lat: 5.3484, lng: -3.9913 },
+  plateau: { name: 'Plateau', address: 'Plateau, Abidjan', lat: 5.3197, lng: -4.0167 },
+  yopougon: { name: 'Yopougon', address: 'Yopougon, Abidjan', lat: 5.3483, lng: -4.0736 },
+  marcory: { name: 'Marcory', address: 'Marcory, Abidjan', lat: 5.3021, lng: -3.9856 },
+  abobo: { name: 'Abobo', address: 'Abobo, Abidjan', lat: 5.4167, lng: -4.0167 },
+  adjame: { name: 'Adjamé', address: 'Adjamé, Abidjan', lat: 5.3500, lng: -4.0333 },
+  treichville: { name: 'Treichville', address: 'Treichville, Abidjan', lat: 5.2923, lng: -4.0024 },
+  koumassi: { name: 'Koumassi', address: 'Koumassi, Abidjan', lat: 5.2967, lng: -3.9567 },
+  portBouet: { name: 'Port-Bouët', address: 'Port-Bouët, Abidjan', lat: 5.2567, lng: -3.9267 },
+  bingerville: { name: 'Bingerville', address: 'Bingerville, Abidjan', lat: 5.3567, lng: -3.8833 },
+  angre: { name: 'Angré', address: 'Angré, Cocody, Abidjan', lat: 5.3750, lng: -3.9700 },
+  riviera: { name: 'Riviera', address: 'Riviera, Cocody, Abidjan', lat: 5.3650, lng: -3.9600 },
+  aeroport: { name: 'Aéroport FHB', address: 'Aéroport Félix Houphouët-Boigny, Port-Bouët', lat: 5.2577, lng: -3.9290 },
 };
 
 // Dataset des trajets types avec tarifs réels
@@ -375,7 +375,6 @@ export const getPricesForRoute = (fromZone: string, toZone: string) => {
       price_min: isPeak ? tarif.price_peak_min : tarif.price_min,
       price_max: isPeak ? tarif.price_peak_max : tarif.price_max,
       currency: tarif.currency,
-      estimated_duration_min: isPeak ? trajet.duration_peak_min : trajet.duration_normal_min,
       deeplink: VTC_PROVIDERS.find((p) => p.name === tarif.provider)?.deeplink || '',
       price_source: 'crowdsourced' as const,
       last_updated: new Date().toISOString(),

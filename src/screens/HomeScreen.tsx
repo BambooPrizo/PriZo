@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,19 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  Animated,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
+import { LocationSearchInput } from '../components/LocationSearchInput';
+import PeakHourBanner from '../components/PeakHourBanner';
 import { AppStackParamList } from '../navigation/AppNavigator';
 import { FREQUENT_ROUTES, RECENT_CONTRIBUTIONS, isPeakHour, VTC_PROVIDERS } from '../data/vtcData';
+import { PlaceDetails } from '../utils/geocoding';
+import { calculateHaversineDistance, formatDistance, estimateTravelDuration, formatDuration } from '../utils/geocoding';
+import { useLocation } from '../hooks/useLocation';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
@@ -22,40 +27,114 @@ const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const isPeak = isPeakHour();
 
-  const [fromLabel, setFromLabel] = useState('');
-  const [toLabel, setToLabel] = useState('');
-  const [fromCoords, setFromCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [toCoords, setToCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [fromPlace, setFromPlace] = useState<PlaceDetails | null>(null);
+  const [toPlace, setToPlace] = useState<PlaceDetails | null>(null);
   const [error, setError] = useState('');
 
-  const handleSelectRoute = (route: (typeof FREQUENT_ROUTES)[0]) => {
-    setFromLabel(route.from.name);
-    setToLabel(route.to.name);
-    setFromCoords({ lat: route.from.lat, lng: route.from.lng });
-    setToCoords({ lat: route.to.lat, lng: route.to.lng });
-  };
+  // Animation pour le bouton swap
+  const swapRotation = useRef(new Animated.Value(0)).current;
+  const [isSwapped, setIsSwapped] = useState(false);
 
-  const handleCompare = () => {
+  // Hook de localisation pour auto-géolocaliser au démarrage
+  const { coords, address, loading: isLocating, getCurrentPosition } = useLocation({
+    reverseGeocode: true,
+  });
+
+  // Auto-géolocaliser au montage
+  useEffect(() => {
+    const autoLocate = async () => {
+      if (!fromPlace) {
+        await getCurrentPosition();
+      }
+    };
+    autoLocate();
+  }, []);
+
+  // Mettre à jour le départ quand la position est trouvée
+  useEffect(() => {
+    if (coords && address && !fromPlace) {
+      setFromPlace({
+        placeId: 'current_location',
+        name: address.name || 'Ma position actuelle',
+        address: address.address || `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`,
+        lat: coords.latitude,
+        lng: coords.longitude,
+        types: ['current_location'],
+      });
+    }
+  }, [coords, address, fromPlace]);
+
+  // Fonction pour échanger départ et arrivée
+  const handleSwap = useCallback(() => {
+    // Animation de rotation
+    Animated.timing(swapRotation, {
+      toValue: isSwapped ? 0 : 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+    setIsSwapped(!isSwapped);
+
+    // Échanger les valeurs
+    const tempFrom = fromPlace;
+    setFromPlace(toPlace);
+    setToPlace(tempFrom);
+  }, [fromPlace, toPlace, isSwapped, swapRotation]);
+
+  // Interpolation pour la rotation
+  const rotateInterpolation = swapRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
+
+  // Calcul de distance et durée estimée
+  const routeInfo = fromPlace && toPlace 
+    ? (() => {
+        const distance = calculateHaversineDistance(
+          fromPlace.lat, fromPlace.lng,
+          toPlace.lat, toPlace.lng
+        );
+        const duration = estimateTravelDuration(distance, isPeak);
+        return { distance, duration };
+      })()
+    : null;
+
+  const handleSelectRoute = useCallback((route: (typeof FREQUENT_ROUTES)[0]) => {
+    setFromPlace({
+      placeId: `route_from_${route.label}`,
+      name: route.from.name,
+      address: route.from.address,
+      lat: route.from.lat,
+      lng: route.from.lng,
+      types: ['frequent_route'],
+    });
+    setToPlace({
+      placeId: `route_to_${route.label}`,
+      name: route.to.name,
+      address: route.to.address,
+      lat: route.to.lat,
+      lng: route.to.lng,
+      types: ['frequent_route'],
+    });
+    setError('');
+  }, []);
+
+  const handleCompare = useCallback(() => {
     setError('');
 
-    if (!fromLabel.trim() || !toLabel.trim()) {
-      setError('Veuillez remplir les deux champs');
+    if (!fromPlace || !toPlace) {
+      setError('Veuillez sélectionner les points de départ et d\'arrivée');
       return;
     }
 
-    // Simuler des coordonnées si non définies
-    const finalFromCoords = fromCoords || { lat: 5.3364, lng: -3.9746 };
-    const finalToCoords = toCoords || { lat: 5.3217, lng: -4.0195 };
-
     navigation.navigate('SearchResults', {
-      from_lat: finalFromCoords.lat,
-      from_lng: finalFromCoords.lng,
-      to_lat: finalToCoords.lat,
-      to_lng: finalToCoords.lng,
-      from_label: fromLabel,
-      to_label: toLabel,
+      from_lat: fromPlace.lat,
+      from_lng: fromPlace.lng,
+      to_lat: toPlace.lat,
+      to_lng: toPlace.lng,
+      from_label: fromPlace.name,
+      to_label: toPlace.name,
     });
-  };
+  }, [fromPlace, toPlace, navigation]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -77,38 +156,84 @@ const HomeScreen: React.FC = () => {
 
         <Text style={styles.subtitle}>Comparez les VTC à Abidjan</Text>
 
-        {/* Formulaire de recherche */}
+        {/* Banner heure de pointe */}
+        <PeakHourBanner />
+
+        {/* Formulaire de recherche GPS */}
         <View style={styles.searchCard}>
-          <View style={styles.inputWrapper}>
-            <View style={styles.pinIndicator}>
-              <View style={[styles.pin, styles.pinGreen]} />
-              <View style={styles.pinLine} />
+          <View style={styles.inputsContainer}>
+            {/* Input Départ */}
+            <View style={styles.inputWrapper}>
+              <View style={styles.pinIndicator}>
+                <View style={[styles.pin, styles.pinGreen]} />
+                <View style={styles.pinLine} />
+              </View>
+              <View style={styles.inputField}>
+                <LocationSearchInput
+                  label={isLocating ? "📍 Localisation..." : "📍 Départ"}
+                  placeholder={isLocating ? "Recherche de votre position..." : "D'où partez-vous ?"}
+                  value={fromPlace}
+                  onPlaceSelected={setFromPlace}
+                  showCurrentLocation={true}
+                  icon="🟢"
+                  testID="from-location-input"
+                />
+              </View>
             </View>
-            <View style={styles.inputField}>
-              <Input
-                label="Départ"
-                placeholder="D'où partez-vous ?"
-                value={fromLabel}
-                onChangeText={setFromLabel}
-                icon="location"
-              />
+
+            {/* Bouton Swap */}
+            <TouchableOpacity
+              style={styles.swapButton}
+              onPress={handleSwap}
+              activeOpacity={0.7}
+              accessibilityLabel="Inverser départ et arrivée"
+              accessibilityHint="Échange les points de départ et d'arrivée"
+            >
+              <Animated.View style={{ transform: [{ rotate: rotateInterpolation }] }}>
+                <Ionicons name="swap-vertical" size={22} color="#F97316" />
+              </Animated.View>
+            </TouchableOpacity>
+
+            {/* Input Arrivée */}
+            <View style={styles.inputWrapper}>
+              <View style={styles.pinIndicator}>
+                <View style={[styles.pin, styles.pinRed]} />
+              </View>
+              <View style={styles.inputField}>
+                <LocationSearchInput
+                  label="🏁 Arrivée"
+                  placeholder="Où allez-vous ?"
+                  value={toPlace}
+                  onPlaceSelected={setToPlace}
+                  showCurrentLocation={false}
+                  icon="🔴"
+                  testID="to-location-input"
+                />
+              </View>
             </View>
           </View>
 
-          <View style={styles.inputWrapper}>
-            <View style={styles.pinIndicator}>
-              <View style={[styles.pin, styles.pinRed]} />
+          {/* Info distance/durée estimée */}
+          {routeInfo && (
+            <View style={styles.routeInfoContainer}>
+              <View style={styles.routeInfoItem}>
+                <Text style={styles.routeInfoIcon}>📏</Text>
+                <Text style={styles.routeInfoText}>
+                  {formatDistance(routeInfo.distance)}
+                </Text>
+              </View>
+              <View style={styles.routeInfoDivider} />
+              <View style={styles.routeInfoItem}>
+                <Text style={styles.routeInfoIcon}>⏱️</Text>
+                <Text style={styles.routeInfoText}>
+                  {isPeak 
+                    ? `${formatDuration(routeInfo.duration.peak)} (pointe)`
+                    : formatDuration(routeInfo.duration.normal)
+                  }
+                </Text>
+              </View>
             </View>
-            <View style={styles.inputField}>
-              <Input
-                label="Arrivée"
-                placeholder="Où allez-vous ?"
-                value={toLabel}
-                onChangeText={setToLabel}
-                icon="flag"
-              />
-            </View>
-          </View>
+          )}
 
           {error && (
             <View style={styles.errorContainer}>
@@ -122,6 +247,7 @@ const HomeScreen: React.FC = () => {
             onPress={handleCompare}
             variant="primary"
             fullWidth
+            disabled={!fromPlace || !toPlace}
           />
         </View>
 
@@ -233,9 +359,32 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 24,
   },
+  inputsContainer: {
+    position: 'relative',
+  },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+  },
+  swapButton: {
+    position: 'absolute',
+    right: 0,
+    top: '50%',
+    marginTop: -20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#0F172A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#F97316',
+    zIndex: 10,
+    shadowColor: '#F97316',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   pinIndicator: {
     alignItems: 'center',
@@ -271,6 +420,34 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 13,
     marginLeft: 6,
+  },
+  routeInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  routeInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  routeInfoIcon: {
+    fontSize: 16,
+  },
+  routeInfoText: {
+    color: '#F1F5F9',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  routeInfoDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#334155',
+    marginHorizontal: 16,
   },
   section: {
     marginBottom: 24,

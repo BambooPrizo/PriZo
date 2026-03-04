@@ -1,226 +1,437 @@
-import React, { memo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { PriceResult } from '../types';
-import ConfidenceIndicator from './ConfidenceIndicator';
-import { formatTimeAgo, formatPriceRange, getConfidenceBadge } from '../utils';
-import { COLORS, TOUCH_TARGET } from '../constants';
+// ============================================
+// COMPOSANT PRICECARD - REFONTE TOTALE
+// ============================================
 
-interface PriceCardProps extends PriceResult {
-  onPress: () => void;
-  isLowest?: boolean;
-}
+import React, { memo, useEffect, useRef, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+  Alert,
+  Linking,
+} from 'react-native';
+import { PriceCardProps } from '../types';
+import { estimateWaitingTime } from '../utils/waitingTimeEstimator';
+import {
+  formatPrice,
+  formatPriceRange,
+  formatFreshness,
+  calculateSavings,
+  getVehicleIcon,
+  capitalize,
+} from '../utils/priceCardHelpers';
+import { COLORS } from '../constants';
+
+// URLs des stores pour installation des apps
+const STORE_URLS: Record<string, { ios: string; android: string }> = {
+  yango: {
+    ios: 'https://apps.apple.com/app/yango/id1437857226',
+    android: 'https://play.google.com/store/apps/details?id=com.yandex.yango',
+  },
+  heetch: {
+    ios: 'https://apps.apple.com/app/heetch/id1000685177',
+    android: 'https://play.google.com/store/apps/details?id=com.heetch',
+  },
+  indrive: {
+    ios: 'https://apps.apple.com/app/indrive/id1050302965',
+    android: 'https://play.google.com/store/apps/details?id=sinet.startup.inDriver',
+  },
+};
+
+// Couleurs des providers (placeholder - à remplacer par vraies images)
+const PROVIDER_COLORS: Record<string, string> = {
+  yango: '#FF4444',
+  heetch: '#8B5CF6',
+  indrive: '#22C55E',
+};
 
 const PriceCard: React.FC<PriceCardProps> = memo(({
-  provider,
-  vehicle_type,
-  price_min,
-  price_max,
-  currency,
-  estimated_duration_min,
-  confidence_score,
-  last_updated,
+  result,
+  isLowest,
+  lowestPrice,
+  fromLat,
+  fromLng,
   onPress,
-  isLowest = false,
+  index = 0,
 }) => {
-  const badge = getConfidenceBadge(confidence_score);
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateYAnim = useRef(new Animated.Value(10)).current;
+  const badgeScaleAnim = useRef(new Animated.Value(1)).current;
 
-  // Label du type de véhicule (adapté aux VTC Abidjan)
-  const getVehicleLabel = useCallback(() => {
-    switch (vehicle_type) {
-      case 'moto':
-        return '🏍️ Moto';
-      case 'eco':
-        return '💰 Éco';
-      case 'confort':
-        return '🛋️ Confort';
-      case 'premium':
-        return '⭐ Premium';
-      case 'berline':
-        return '🚘 Berline';
-      case 'luxe':
-        return '✨ Luxe';
-      default:
-        return '🚗 Standard';
+  // Extraire les données du résultat
+  const {
+    provider,
+    vehicle_type,
+    price_min,
+    price_max,
+    last_updated,
+    deeplink,
+  } = result;
+
+  // Calculs mémorisés
+  const waitingTime = useMemo(
+    () => estimateWaitingTime(provider, fromLat, fromLng),
+    [provider, fromLat, fromLng]
+  );
+
+  const freshness = useMemo(
+    () => formatFreshness(last_updated),
+    [last_updated]
+  );
+
+  const savings = useMemo(
+    () => isLowest ? calculateSavings(price_max, lowestPrice) : null,
+    [isLowest, price_max, lowestPrice]
+  );
+
+  const vehicleIcon = useMemo(
+    () => getVehicleIcon(vehicle_type),
+    [vehicle_type]
+  );
+
+  const providerColor = PROVIDER_COLORS[provider.toLowerCase()] || COLORS.primary;
+
+  // Animation d'entrée échelonnée
+  useEffect(() => {
+    const delay = index * 80;
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        delay,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateYAnim, {
+        toValue: 0,
+        duration: 300,
+        delay,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, translateYAnim, index]);
+
+  // Animation du badge meilleur prix
+  useEffect(() => {
+    if (isLowest) {
+      Animated.sequence([
+        Animated.timing(badgeScaleAnim, {
+          toValue: 1.08,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(badgeScaleAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
-  }, [vehicle_type]);
+  }, [isLowest, badgeScaleAnim]);
 
-  // Accessibilité : description complète de la carte
-  const accessibilityLabel = `${provider}, ${getVehicleLabel()}, ${formatPriceRange(price_min, price_max)}, durée estimée ${estimated_duration_min} minutes, ${badge.label}${isLowest ? ', meilleur prix' : ''}`;
+  // Handler du bouton réserver
+  const handlePress = async () => {
+    try {
+      const supported = await Linking.canOpenURL(deeplink);
+      if (supported) {
+        await Linking.openURL(deeplink);
+      } else {
+        showInstallAlert();
+      }
+    } catch {
+      showInstallAlert();
+    }
+    onPress();
+  };
+
+  const showInstallAlert = () => {
+    const storeUrl = STORE_URLS[provider.toLowerCase()];
+    Alert.alert(
+      'Application non installée',
+      `L'application ${provider} n'est pas installée. Voulez-vous l'installer ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Installer',
+          onPress: () => {
+            const url = storeUrl?.android || storeUrl?.ios;
+            if (url) {
+              Linking.openURL(url);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Label d'accessibilité complet
+  const accessibilityLabel = `${provider}, ${vehicleIcon} ${capitalize(vehicle_type)}, ${formatPriceRange(price_min, price_max)}, chauffeur dans ${waitingTime.label}${isLowest ? '. Meilleur prix disponible.' : ''}`;
 
   return (
-    <View 
-      style={styles.card}
+    <Animated.View
+      style={[
+        isLowest ? styles.cardLowest : styles.card,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: translateYAnim }],
+        },
+      ]}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >
-      {/* Badge meilleur prix */}
-      {isLowest && (
-        <View style={styles.lowestBadge} accessibilityElementsHidden>
-          <Text style={styles.lowestBadgeText}>Meilleur prix 🏆</Text>
-        </View>
-      )}
-
-      {/* Header */}
+      {/* ─────────────────────────────────────────────────── */}
+      {/* BLOC 1 — EN-TÊTE PROVIDER */}
+      {/* ─────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.provider}>{provider}</Text>
-          <Text style={styles.vehicleType}>{getVehicleLabel()}</Text>
+        <View style={styles.headerLeft}>
+          {/* Logo placeholder (carré coloré avec initiale) */}
+          <View style={[styles.logoContainer, { backgroundColor: providerColor }]}>
+            <Text style={styles.logoText}>
+              {provider.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View style={styles.providerInfo}>
+            <Text style={styles.providerName}>{provider}</Text>
+            <Text style={styles.vehicleType}>
+              {vehicleIcon} {capitalize(vehicle_type)}
+            </Text>
+          </View>
         </View>
-        <View style={[styles.confidenceBadge, { backgroundColor: badge.bgColor }]}>
-          <Text style={[styles.confidenceBadgeText, { color: badge.color }]}>
-            {badge.label}
-          </Text>
-        </View>
+
+        {/* Badge meilleur prix */}
+        {isLowest && (
+          <Animated.View
+            style={[
+              styles.lowestBadge,
+              { transform: [{ scale: badgeScaleAnim }] },
+            ]}
+            accessibilityElementsHidden
+          >
+            <Text style={styles.lowestBadgeText}>🏆 MEILLEUR PRIX</Text>
+          </Animated.View>
+        )}
       </View>
 
-      {/* Prix */}
-      <View style={styles.priceContainer}>
-        <Text style={styles.price}>
-          {price_min.toLocaleString('fr-CI')} — {price_max.toLocaleString('fr-CI')}
+      {/* ─────────────────────────────────────────────────── */}
+      {/* BLOC 2 — PRIX */}
+      {/* ─────────────────────────────────────────────────── */}
+      <View style={styles.priceSection}>
+        <Text style={[styles.priceText, isLowest && styles.priceTextLowest]}>
+          {formatPrice(price_min)} à {formatPrice(price_max)} XOF
         </Text>
-        <Text style={styles.currency}>{currency}</Text>
+        {isLowest && savings && savings > 0 && (
+          <Text style={styles.savingsText}>
+            Vous économisez {formatPrice(savings)} XOF vs le plus cher
+          </Text>
+        )}
       </View>
 
-      {/* Infos supplémentaires */}
-      <View style={styles.infoRow}>
-        <View style={styles.infoItem}>
-          <Ionicons name="time-outline" size={16} color={COLORS.textSecondary} />
-          <Text style={styles.infoText}>{estimated_duration_min} min</Text>
-        </View>
-        <Text style={styles.timestamp}>{formatTimeAgo(last_updated)}</Text>
+      {/* ─────────────────────────────────────────────────── */}
+      {/* BLOC 3 — TEMPS D'ATTENTE */}
+      {/* ─────────────────────────────────────────────────── */}
+      <View style={styles.waitingSection}>
+        <Text style={styles.waitingText}>
+          🚗 Chauffeur dans {waitingTime.label}
+        </Text>
       </View>
 
-      {/* Indicateur de confiance */}
-      <ConfidenceIndicator score={confidence_score} showLabel={false} />
+      {/* ─────────────────────────────────────────────────── */}
+      {/* BLOC 4 — FRAÎCHEUR DU PRIX */}
+      {/* ─────────────────────────────────────────────────── */}
+      <View style={styles.freshnessSection}>
+        <Text style={[styles.freshnessText, { color: freshness.color }]}>
+          {freshness.icon} {freshness.label}
+        </Text>
+        {freshness.isOld && (
+          <Text style={styles.verifyText}>
+            Vérifiez le prix final dans l'app {provider}
+          </Text>
+        )}
+      </View>
 
-      {/* Bouton Réserver */}
-      <TouchableOpacity 
-        style={styles.bookButton} 
-        onPress={onPress} 
+      {/* ─────────────────────────────────────────────────── */}
+      {/* BLOC 5 — BOUTON RÉSERVER */}
+      {/* ─────────────────────────────────────────────────── */}
+      <TouchableOpacity
+        style={[styles.bookButton, isLowest && styles.bookButtonLowest]}
+        onPress={handlePress}
         activeOpacity={0.8}
-        accessibilityLabel={`Réserver avec ${provider}`}
         accessibilityRole="button"
-        accessibilityHint="Ouvre l'application du fournisseur"
+        accessibilityLabel={`Réserver sur ${provider}`}
+        accessibilityHint={`Ouvre l'application ${provider} pour réserver ce trajet`}
       >
-        <Text style={styles.bookButtonText}>Réserver</Text>
-        <Ionicons name="arrow-forward" size={18} color={COLORS.white} />
+        <Text style={styles.bookButtonText}>
+          Réserver sur {provider} →
+        </Text>
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
 }, (prevProps, nextProps) => {
   // Comparaison personnalisée pour éviter les re-rendus inutiles
   return (
-    prevProps.provider === nextProps.provider &&
-    prevProps.price_min === nextProps.price_min &&
-    prevProps.price_max === nextProps.price_max &&
-    prevProps.confidence_score === nextProps.confidence_score &&
-    prevProps.isLowest === nextProps.isLowest
+    prevProps.result.provider === nextProps.result.provider &&
+    prevProps.result.price_min === nextProps.result.price_min &&
+    prevProps.result.price_max === nextProps.result.price_max &&
+    prevProps.result.last_updated === nextProps.result.last_updated &&
+    prevProps.isLowest === nextProps.isLowest &&
+    prevProps.lowestPrice === nextProps.lowestPrice &&
+    prevProps.fromLat === nextProps.fromLat &&
+    prevProps.fromLng === nextProps.fromLng
   );
 });
 
+// ============================================
+// STYLES
+// ============================================
+
 const styles = StyleSheet.create({
+  // Carte standard
   card: {
-    backgroundColor: COLORS.backgroundCard,
-    borderRadius: 16,
+    backgroundColor: '#1E293B',
+    borderRadius: 14,
     padding: 16,
     marginBottom: 12,
-    shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 2 },
+  },
+
+  // Carte meilleur prix
+  cardLowest: {
+    backgroundColor: '#1A2E1A',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#22C55E',
+    shadowColor: '#22C55E',
     shadowOpacity: 0.15,
-    shadowRadius: 6,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 4,
   },
-  lowestBadge: {
-    position: 'absolute',
-    top: -8,
-    right: 16,
-    backgroundColor: COLORS.success,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    zIndex: 1,
-  },
-  lowestBadgeText: {
-    color: COLORS.white,
-    fontSize: 12,
-    fontWeight: '700',
-  },
+
+  // BLOC 1 - Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
   },
-  provider: {
-    color: COLORS.textPrimary,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  vehicleType: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-    marginTop: 2,
-  },
-  confidenceBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  confidenceBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: 12,
-  },
-  price: {
-    color: COLORS.primary,
-    fontSize: 28,
-    fontWeight: '800',
-  },
-  currency: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  infoItem: {
+
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  infoText: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    marginLeft: 6,
-  },
-  timestamp: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-  },
-  bookButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingVertical: 14,
-    minHeight: TOUCH_TARGET.minSize, // Accessibilité : zone cliquable minimum 44px
-    flexDirection: 'row',
+
+  logoContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  logoText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+
+  providerInfo: {
+    marginLeft: 10,
+  },
+
+  providerName: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+
+  vehicleType: {
+    color: '#94A3B8',
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  lowestBadge: {
+    backgroundColor: '#22C55E',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+
+  lowestBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  // BLOC 2 - Prix
+  priceSection: {
+    marginTop: 14,
+  },
+
+  priceText: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '700',
+  },
+
+  priceTextLowest: {
+    color: '#22C55E',
+  },
+
+  savingsText: {
+    color: '#86EFAC',
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+
+  // BLOC 3 - Temps d'attente
+  waitingSection: {
     marginTop: 12,
   },
-  bookButtonText: {
-    color: COLORS.white,
-    fontSize: 16,
+
+  waitingText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '600',
-    marginRight: 8,
+  },
+
+  // BLOC 4 - Fraîcheur
+  freshnessSection: {
+    marginTop: 4,
+  },
+
+  freshnessText: {
+    fontSize: 12,
+  },
+
+  verifyText: {
+    color: '#F97316',
+    fontSize: 11,
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+
+  // BLOC 5 - Bouton
+  bookButton: {
+    backgroundColor: '#F97316',
+    height: 48,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 14,
+  },
+
+  bookButtonLowest: {
+    backgroundColor: '#22C55E',
+  },
+
+  bookButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
 

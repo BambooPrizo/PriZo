@@ -10,21 +10,28 @@ import {
   RefreshControl,
   Linking,
   StatusBar,
+  Animated,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import PriceCard from '../components/PriceCard';
+import RouteHeader from '../components/RouteHeader';
+import MapPreview from '../components/MapPreview';
+import ResultsFooter from '../components/ResultsFooter';
+import PriceInfoModal from '../components/PriceInfoModal';
+import EmptyState from '../components/EmptyState';
 import SkeletonCard from '../components/ui/SkeletonCard';
 import Button from '../components/ui/Button';
 import OfflineBanner from '../components/OfflineBanner';
-import PeakHourBanner from '../components/PeakHourBanner';
 import { useAppDispatch, useAppSelector } from '../store';
 import { fetchPrices, setFilter, VehicleFilter } from '../store/pricesSlice';
 import { AppStackParamList } from '../navigation/AppNavigator';
 import { PriceResult } from '../types';
-import { getPricesForRoute, VTC_PROVIDERS } from '../data/vtcData';
+import { getPricesForRoute, VTC_PROVIDERS, isPeakHour, TRAJETS_TYPES } from '../data/vtcData';
 import { useNetworkStatus } from '../hooks';
-import { COLORS, MESSAGES } from '../constants';
+import { COLORS, MESSAGES, SPACING } from '../constants';
+import { calculateHaversineDistance, formatDistance } from '../utils/geocoding';
+import { PlaceDetails } from '../utils/geocoding';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'SearchResults'>;
 
@@ -45,6 +52,45 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<'price' | 'duration'>('price');
   const [isOfflineData, setIsOfflineData] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [lastUpdated] = useState(new Date().toISOString());
+
+  // Calcul de la distance du trajet
+  const distanceKm = useMemo(() => {
+    return calculateHaversineDistance(from_lat, from_lng, to_lat, to_lng);
+  }, [from_lat, from_lng, to_lat, to_lng]);
+
+  // Récupérer les infos du trajet depuis la base
+  const trajetInfo = useMemo(() => {
+    const trajet = TRAJETS_TYPES.find(t => 
+      t.zone_from.toLowerCase() === from_label.split(' ')[0]?.toLowerCase() ||
+      t.zone_to.toLowerCase() === to_label.split(' ')[0]?.toLowerCase()
+    );
+    return trajet || {
+      distance_km: distanceKm,
+      duration_normal_min: Math.round(distanceKm * 2.5),
+      duration_peak_min: Math.round(distanceKm * 5),
+    };
+  }, [from_label, to_label, distanceKm]);
+
+  // Créer les objets PlaceDetails pour MapPreview
+  const departure: PlaceDetails = useMemo(() => ({
+    placeId: `departure_${from_lat}_${from_lng}`,
+    name: from_label,
+    address: from_label,
+    lat: from_lat,
+    lng: from_lng,
+    types: ['origin'],
+  }), [from_lat, from_lng, from_label]);
+
+  const destination: PlaceDetails = useMemo(() => ({
+    placeId: `destination_${to_lat}_${to_lng}`,
+    name: to_label,
+    address: to_label,
+    lat: to_lat,
+    lng: to_lng,
+    types: ['destination'],
+  }), [to_lat, to_lng, to_label]);
 
   const loadPrices = useCallback(() => {
     dispatch(
@@ -101,16 +147,18 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
       if (sortBy === 'price') {
         return a.price_min - b.price_min;
       }
-      return a.estimated_duration_min - b.estimated_duration_min;
+      // Tri par prix min par défaut
+      return a.price_min - b.price_min;
     });
 
     return filtered;
   };
 
   const filteredResults = getFilteredResults();
-  const lowestPriceId = filteredResults.length > 0 
+  const lowestPriceResult = filteredResults.length > 0 
     ? filteredResults.reduce((min, r) => r.price_min < min.price_min ? r : min, filteredResults[0])
     : null;
+  const lowestPrice = lowestPriceResult?.price_min ?? 0;
 
   // Génération dynamique des prix basée sur les vraies données VTC d'Abidjan
   const realResults: PriceResult[] = useMemo(() => {
@@ -124,7 +172,6 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
         price_min: 1000 + index * 200,
         price_max: 1500 + index * 200,
         currency: 'XOF',
-        estimated_duration_min: 15 + index * 2,
         deeplink: provider.deeplink,
         price_source: 'crowdsourced' as const,
         last_updated: new Date().toISOString(),
@@ -139,7 +186,6 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
       price_min: r.price_min,
       price_max: r.price_max,
       currency: r.currency,
-      estimated_duration_min: r.estimated_duration_min,
       deeplink: r.deeplink,
       price_source: r.price_source,
       last_updated: r.last_updated,
@@ -149,15 +195,36 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const displayResults = results.length > 0 ? filteredResults : realResults.filter(r => activeFilter === 'all' || r.vehicle_type === activeFilter);
 
+  // Trouver le prix max pour calculer les économies
+  const maxPrice = displayResults.length > 0 
+    ? Math.max(...displayResults.map(r => r.price_max))
+    : 0;
+
+  // Vérifier si toutes les données sont anciennes
+  const hasStaleData = displayResults.some(r => {
+    if (!r.last_updated) return false;
+    const diff = Date.now() - new Date(r.last_updated).getTime();
+    return diff > 2 * 60 * 60 * 1000; // > 2h
+  });
+
   // Rendu des items pour FlatList avec useCallback pour performance
-  const renderPriceCard = useCallback(({ item, index }: { item: PriceResult; index: number }) => (
-    <PriceCard
-      key={`${item.provider}-${item.vehicle_type}-${index}`}
-      {...item}
-      onPress={() => handleDeeplink(item.deeplink)}
-      isLowest={lowestPriceId?.provider === item.provider && lowestPriceId?.vehicle_type === item.vehicle_type}
-    />
-  ), [lowestPriceId, handleDeeplink]);
+  const renderPriceCard = useCallback(({ item, index }: { item: PriceResult; index: number }) => {
+    const isLowest = lowestPriceResult?.provider === item.provider && 
+                     lowestPriceResult?.vehicle_type === item.vehicle_type;
+    
+    return (
+      <PriceCard
+        key={`${item.provider}-${item.vehicle_type}-${index}`}
+        result={item}
+        isLowest={isLowest}
+        lowestPrice={lowestPrice}
+        fromLat={from_lat}
+        fromLng={from_lng}
+        onPress={() => handleDeeplink(item.deeplink)}
+        index={index}
+      />
+    );
+  }, [lowestPriceResult, lowestPrice, from_lat, from_lng, handleDeeplink]);
 
   // getItemLayout pour optimisation FlatList
   const getItemLayout = useCallback((_: any, index: number) => ({
@@ -174,32 +241,36 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       
+      {/* Modal d'information */}
+      <PriceInfoModal 
+        visible={showInfoModal} 
+        onClose={() => setShowInfoModal(false)} 
+      />
+      
       {/* Bandeau hors ligne */}
       <OfflineBanner visible={isOffline || isOfflineData} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          accessibilityLabel="Retour"
-          accessibilityRole="button"
-        >
-          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.routeText}>
-            {from_label} → {to_label}
-          </Text>
-          <Text style={styles.distanceText}>~5 km • 12-18 min</Text>
-        </View>
-        <View style={styles.headerRight} />
-      </View>
-      
-      {/* Bandeau heure de pointe */}
-      <View style={styles.peakBannerContainer}>
-        <PeakHourBanner />
-      </View>
+      {/* Header trajet amélioré */}
+      <RouteHeader
+        fromLabel={from_label}
+        toLabel={to_label}
+        distanceKm={trajetInfo.distance_km || distanceKm}
+        durationMin={trajetInfo.duration_normal_min}
+        durationPeakMin={trajetInfo.duration_peak_min}
+        lastUpdated={lastUpdated}
+        onBack={() => navigation.goBack()}
+        onModify={() => navigation.navigate('MainTabs')}
+      />
+
+      {/* Carte prévisualisation du trajet */}
+      <MapPreview
+        departure={departure}
+        destination={destination}
+        height={160}
+      />
+
+      {/* Bandeau données anciennes */}
+      {hasStaleData && <EmptyState type="stale-data" />}
 
       {/* Filtres */}
       <View style={styles.filtersContainer}>
@@ -232,6 +303,7 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
           <TouchableOpacity
             style={[styles.sortButton, sortBy === 'price' && styles.sortButtonActive]}
             onPress={() => setSortBy('price')}
+            accessibilityLabel="Trier par prix"
           >
             <Ionicons
               name="cash-outline"
@@ -242,6 +314,7 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
           <TouchableOpacity
             style={[styles.sortButton, sortBy === 'duration' && styles.sortButtonActive]}
             onPress={() => setSortBy('duration')}
+            accessibilityLabel="Trier par durée"
           >
             <Ionicons
               name="time-outline"
@@ -273,46 +346,64 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
             <SkeletonCard />
           </>
         ) : displayResults.length === 0 ? (
-          // État vide (seulement si aucune donnée locale non plus)
-          <View style={styles.emptyState}>
-            <Ionicons name="car-outline" size={64} color="#64748B" />
-            <Text style={styles.emptyTitle}>Aucun prix disponible</Text>
-            <Text style={styles.emptyText}>
-              Aucun prix disponible pour ce trajet.{'\n'}
-              Soyez le premier à contribuer !
-            </Text>
-            <Button
-              label="Contribuer un prix"
-              onPress={() => navigation.navigate('Contribute', route.params)}
-              variant="primary"
-            />
-          </View>
+          // État vide
+          <EmptyState
+            type="no-results"
+            onContribute={() => navigation.navigate('Contribute', route.params)}
+            onModifyRoute={() => navigation.navigate('MainTabs')}
+          />
         ) : (
-          // Liste des résultats (données locales ou API)
-          displayResults.map((result, index) => (
-            <PriceCard
-              key={`${result.provider}-${result.vehicle_type}-${index}`}
-              {...result}
-              onPress={() => handleDeeplink(result.deeplink)}
-              isLowest={lowestPriceId?.provider === result.provider && lowestPriceId?.vehicle_type === result.vehicle_type}
-            />
-          ))
+          // Liste des résultats
+          <>
+            {/* Trier pour que le meilleur prix soit en premier */}
+            {[...displayResults]
+              .sort((a, b) => {
+                // Meilleur prix toujours en premier
+                const aIsLowest = lowestPriceResult?.provider === a.provider && 
+                                  lowestPriceResult?.vehicle_type === a.vehicle_type;
+                const bIsLowest = lowestPriceResult?.provider === b.provider && 
+                                  lowestPriceResult?.vehicle_type === b.vehicle_type;
+                if (aIsLowest) return -1;
+                if (bIsLowest) return 1;
+                // Puis tri normal par prix
+                return a.price_min - b.price_min;
+              })
+              .map((result, index) => {
+                const isLowest = lowestPriceResult?.provider === result.provider && 
+                                 lowestPriceResult?.vehicle_type === result.vehicle_type;
+                return (
+                  <PriceCard
+                    key={`${result.provider}-${result.vehicle_type}-${index}`}
+                    result={result}
+                    isLowest={isLowest}
+                    lowestPrice={lowestPrice}
+                    fromLat={from_lat}
+                    fromLng={from_lng}
+                    onPress={() => handleDeeplink(result.deeplink)}
+                    index={index}
+                  />
+                );
+              })}
+            
+            {/* Banner single result */}
+            {displayResults.length === 1 && (
+              <EmptyState type="single-result" />
+            )}
+          </>
         )}
       </ScrollView>
 
-      {/* Disclaimer */}
-      <View style={styles.disclaimer}>
-        <Ionicons name="information-circle-outline" size={16} color="#94A3B8" />
-        <Text style={styles.disclaimerText}>
-          Prix indicatifs — actualisés toutes les 10 min
-        </Text>
-      </View>
+      {/* Footer fixe */}
+      <ResultsFooter onInfoPress={() => setShowInfoModal(true)} />
 
       {/* Bouton flottant */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate('Contribute', route.params)}
         activeOpacity={0.8}
+        accessibilityLabel="Contribuer un prix"
+        accessibilityRole="button"
+        accessibilityHint="Ouvre le formulaire pour ajouter un nouveau prix"
       >
         <Ionicons name="add" size={24} color="#FFFFFF" />
         <Text style={styles.fabText}>Contribuer</Text>
@@ -325,43 +416,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0F172A',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#1E293B',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerCenter: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  routeText: {
-    color: '#F1F5F9',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  distanceText: {
-    color: '#64748B',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  headerRight: {
-    width: 40,
-  },
-  peakBannerContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
   },
   filtersContainer: {
     flexDirection: 'row',
@@ -413,46 +467,11 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
-    paddingBottom: 100,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 32,
-  },
-  emptyTitle: {
-    color: '#F1F5F9',
-    fontSize: 20,
-    fontWeight: '700',
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptyText: {
-    color: '#64748B',
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  disclaimer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#1E293B80',
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
-  },
-  disclaimerText: {
-    color: '#94A3B8',
-    fontSize: 12,
-    marginLeft: 6,
+    paddingBottom: 120,
   },
   fab: {
     position: 'absolute',
-    bottom: 80,
+    bottom: 56,
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
