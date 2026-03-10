@@ -15,7 +15,7 @@ export const phoneSchema = z.string()
   .refine(val => {
     const digits = val.replace('+225', '').replace('225', '');
     const prefix = digits.substring(0, 2);
-    return PHONE_PATTERNS.validPrefixes.includes(prefix);
+    return (PHONE_PATTERNS.validPrefixes as readonly string[]).includes(prefix);
   }, { message: 'Préfixe opérateur non reconnu (MTN, Orange, Moov)' });
 
 // 🔐 Validation mot de passe
@@ -121,9 +121,9 @@ export const validateWithSchema = <T>(
   }
   
   const errors: Record<string, string> = {};
-  result.error.errors.forEach((err) => {
-    const path = err.path.join('.');
-    errors[path] = err.message;
+  result.error.issues.forEach((issue) => {
+    const path = issue.path.join('.');
+    errors[path] = issue.message;
   });
   
   return { success: false, errors };

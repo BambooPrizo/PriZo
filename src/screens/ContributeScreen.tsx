@@ -3,12 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Alert,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import Input from '../components/ui/Input';
@@ -70,12 +70,11 @@ const ContributeScreen: React.FC<Props> = ({ route, navigation }) => {
         'Votre contribution a été enregistrée. Vous avez gagné 10 points !',
         [{ text: 'Super', onPress: () => navigation.goBack() }]
       );
-    } catch (err) {
-      // Simuler succès pour la démo
+    } catch (err: any) {
       Alert.alert(
-        'Merci ! 🎉',
-        'Votre contribution a été enregistrée. Vous avez gagné 10 points !',
-        [{ text: 'Super', onPress: () => navigation.goBack() }]
+        'Erreur',
+        err?.message || 'Une erreur est survenue lors de l\'enregistrement de votre contribution.',
+        [{ text: 'OK' }]
       );
     } finally {
       setIsSubmitting(false);
@@ -84,7 +83,7 @@ const ContributeScreen: React.FC<Props> = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -215,7 +214,7 @@ const ContributeScreen: React.FC<Props> = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -224,18 +223,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    borderBottomColor: '#E2E8F0',
   },
   closeButton: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#F8FAFC',
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
-    color: '#F1F5F9',
+    color: '#1E293B',
     fontSize: 18,
     fontWeight: '700',
   },
@@ -249,20 +248,20 @@ const styles = StyleSheet.create({
   routeInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
+    backgroundColor: '#FFF7ED',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
     marginBottom: 24,
   },
   routeText: {
-    color: '#F1F5F9',
+    color: '#1E293B',
     fontSize: 15,
     fontWeight: '500',
     marginLeft: 10,
   },
   sectionTitle: {
-    color: '#F1F5F9',
+    color: '#1E293B',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
@@ -277,12 +276,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1E293B',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#E2E8F0',
     width: '48%',
   },
   providerCardSelected: {
@@ -305,12 +304,12 @@ const styles = StyleSheet.create({
   vehicleCard: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#1E293B',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 16,
     borderRadius: 12,
     marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#E2E8F0',
   },
   vehicleCardSelected: {
     borderColor: '#F97316',

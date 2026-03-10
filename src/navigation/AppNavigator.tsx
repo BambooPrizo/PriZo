@@ -102,7 +102,7 @@ const AuthNavigator: React.FC = () => {
     <AuthStack.Navigator
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: '#0F172A' },
+        contentStyle: { backgroundColor: '#FFFFFF' },
       }}
     >
       <AuthStack.Screen name="Login" component={LoginScreen} />
@@ -117,7 +117,7 @@ const MainAppNavigator: React.FC = () => {
     <AppStack.Navigator
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: '#0F172A' },
+        contentStyle: { backgroundColor: '#FFFFFF' },
       }}
     >
       <AppStack.Screen name="MainTabs" component={BottomTabNavigator} />

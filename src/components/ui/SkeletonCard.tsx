@@ -53,7 +53,7 @@ const SkeletonCard: React.FC = () => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -62,16 +62,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   providerSkeleton: {
-    backgroundColor: '#334155',
+    backgroundColor: '#E2E8F0',
     height: 24,
     width: 120,
     borderRadius: 6,
     marginBottom: 12,
   },
   priceSkeleton: {
-    backgroundColor: '#334155',
+    backgroundColor: '#E2E8F0',
     height: 36,
     width: 180,
     borderRadius: 6,
@@ -83,26 +85,26 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   durationSkeleton: {
-    backgroundColor: '#334155',
+    backgroundColor: '#E2E8F0',
     height: 20,
     width: 100,
     borderRadius: 6,
   },
   confidenceSkeleton: {
-    backgroundColor: '#334155',
+    backgroundColor: '#E2E8F0',
     height: 20,
     width: 80,
     borderRadius: 10,
   },
   timestampSkeleton: {
-    backgroundColor: '#334155',
+    backgroundColor: '#E2E8F0',
     height: 16,
     width: 150,
     borderRadius: 6,
     marginBottom: 16,
   },
   buttonSkeleton: {
-    backgroundColor: '#334155',
+    backgroundColor: '#E2E8F0',
     height: 48,
     borderRadius: 10,
   },

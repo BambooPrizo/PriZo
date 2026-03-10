@@ -35,7 +35,7 @@ export const validatePhoneCI = (phone: string): { valid: boolean; formatted: str
   
   // Vérifier le préfixe opérateur
   const prefix = digitsOnly.substring(0, 2);
-  if (!PHONE_PATTERNS.validPrefixes.includes(prefix)) {
+  if (!(PHONE_PATTERNS.validPrefixes as readonly string[]).includes(prefix)) {
     return { valid: false, formatted: cleaned, error: 'Préfixe opérateur non reconnu' };
   }
   
@@ -131,7 +131,7 @@ export const calculateConfidenceScore = (
 
 // 🏆 OBTENIR LE RANG CONTRIBUTEUR
 export const getContributorRank = (points: number): { name: string; icon: string; nextRank?: { name: string; pointsNeeded: number } } => {
-  let currentRank = CONTRIBUTOR_RANKS[0];
+  let currentRank: { name: string; minPoints: number; icon: string } = CONTRIBUTOR_RANKS[0];
   
   for (const rank of CONTRIBUTOR_RANKS) {
     if (points >= rank.minPoints) {

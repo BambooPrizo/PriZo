@@ -9,16 +9,16 @@ export const COLORS = {
   primaryLight: '#FB923C',
   primaryDark: '#EA580C',
   
-  // Arrière-plans
-  background: '#0F172A',
-  backgroundLight: '#1E293B',
-  backgroundCard: '#1E293B',
-  surface: '#334155',
+  // Arrière-plans (thème blanc)
+  background: '#FFFFFF',
+  backgroundLight: '#F8FAFC',
+  backgroundCard: '#FFFFFF',
+  surface: '#F1F5F9',
   
   // Textes
-  textPrimary: '#F1F5F9',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
+  textPrimary: '#1E293B',
+  textSecondary: '#64748B',
+  textMuted: '#94A3B8',
   
   // États
   success: '#22C55E',
@@ -42,6 +42,7 @@ export const COLORS = {
   black: '#000000',
   transparent: 'transparent',
   overlay: 'rgba(0, 0, 0, 0.5)',
+  border: '#E2E8F0',
 } as const;
 
 // 📏 ESPACEMENTS

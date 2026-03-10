@@ -10,24 +10,9 @@ interface AuthState {
   error: string | null;
 }
 
-// Profil de test par défaut
-const defaultUser: User = {
-  id: 'usr_test_001',
-  phone: '+225 07 12 34 56 78',
-  name: 'Kouamé Konan',
-  plan: 'free',
-  points: 150,
-};
-
-// Identifiants de test
-const TEST_CREDENTIALS = {
-  phone: '+225 07 12 34 56 78',
-  password: 'prizo2026',
-};
-
 const initialState: AuthState = {
-  user: defaultUser,
-  token: 'test_token_demo_mode',
+  user: null,
+  token: null,
   isLoading: false,
   error: null,
 };
@@ -36,17 +21,6 @@ const initialState: AuthState = {
 export const login = createAsyncThunk(
   'auth/login',
   async ({ phone, password }: { phone: string; password: string }, { rejectWithValue }) => {
-    // Mode démo : accepter les identifiants de test
-    const normalizedPhone = phone.replace(/\s/g, '');
-    const testPhone = TEST_CREDENTIALS.phone.replace(/\s/g, '');
-    
-    if (normalizedPhone === testPhone && password === TEST_CREDENTIALS.password) {
-      return {
-        user: defaultUser,
-        token: 'test_token_demo_mode',
-      };
-    }
-    
     try {
       const response = await authService.login(phone, password);
       // Stocker le token de manière sécurisée

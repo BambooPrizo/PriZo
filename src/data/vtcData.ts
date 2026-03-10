@@ -10,7 +10,8 @@ export const VTC_PROVIDERS = [
     baseFare: '500-600 XOF/km',
     availability: ['Abidjan', 'Bouaké'],
     status: 'active',
-    deeplink: 'yango://',
+    deeplink: 'ru.yandex.taxi://',
+    androidPackage: 'com.yandex.yango',
     popularity: 'high',
     color: '#FF4444',
   },
@@ -23,6 +24,7 @@ export const VTC_PROVIDERS = [
     availability: ['Abidjan'],
     status: 'active',
     deeplink: 'heetch://',
+    androidPackage: 'com.heetch',
     popularity: 'high',
     color: '#8B5CF6',
   },
@@ -34,7 +36,8 @@ export const VTC_PROVIDERS = [
     baseFare: 'Négociation libre',
     availability: ['Abidjan'],
     status: 'active',
-    deeplink: 'indrive://',
+    deeplink: 'indriver://',
+    androidPackage: 'sinet.startup.inDriver',
     popularity: 'high',
     color: '#22C55E',
   },
@@ -47,6 +50,7 @@ export const VTC_PROVIDERS = [
     availability: ['Abidjan'],
     status: 'active',
     deeplink: 'warrentaxi://',
+    androidPackage: 'com.warren.taxi',
     popularity: 'medium',
     color: '#F59E0B',
   },
@@ -59,6 +63,7 @@ export const VTC_PROVIDERS = [
     availability: ['Abidjan'],
     status: 'active',
     deeplink: 'taxijet://',
+    androidPackage: 'com.taxijet',
     popularity: 'medium',
     color: '#3B82F6',
   },
@@ -335,15 +340,6 @@ export const FREQUENT_ROUTES = [
   },
 ];
 
-// Contributions récentes simulées
-export const RECENT_CONTRIBUTIONS = [
-  { provider: 'Yango', price: 1350, zone_from: 'Cocody', zone_to: 'Plateau', time: '3 min', vehicle_type: 'eco' },
-  { provider: 'InDrive', price: 1100, zone_from: 'Abobo', zone_to: 'Adjamé', time: '8 min', vehicle_type: 'standard' },
-  { provider: 'Heetch', price: 3200, zone_from: 'Yopougon', zone_to: 'Plateau', time: '12 min', vehicle_type: 'standard' },
-  { provider: 'Warren Taxi', price: 5000, zone_from: 'Cocody', zone_to: 'Aéroport FHB', time: '18 min', vehicle_type: 'standard' },
-  { provider: 'TaxiJet', price: 9000, zone_from: 'Plateau', zone_to: 'Aéroport FHB', time: '25 min', vehicle_type: 'premium' },
-];
-
 // Fonction pour vérifier si c'est une heure de pointe
 export const isPeakHour = (): boolean => {
   const hour = new Date().getHours();
@@ -422,7 +418,6 @@ export default {
   ZONES_ABIDJAN,
   TRAJETS_TYPES,
   FREQUENT_ROUTES,
-  RECENT_CONTRIBUTIONS,
   isPeakHour,
   getPricesForRoute,
   findClosestRoute,

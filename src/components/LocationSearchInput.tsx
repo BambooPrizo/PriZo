@@ -35,6 +35,7 @@ interface LocationSearchInputProps {
   showCurrentLocation?: boolean;
   icon?: string;
   testID?: string;
+  customStyle?: any;
 }
 
 // ============================================
@@ -50,6 +51,7 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
   showCurrentLocation = true,
   icon = '📍',
   testID,
+  customStyle,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   
@@ -123,9 +125,9 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
   // ============================================
 
   return (
-    <View style={styles.container} testID={testID}>
-      {/* Label */}
-      <Text style={styles.label}>{label}</Text>
+    <View style={[styles.container, customStyle]} testID={testID}>
+      {/* Label - masqué si vide */}
+      {label ? <Text style={styles.label}>{label}</Text> : null}
       
       {/* Input avec bouton GPS */}
       <View style={styles.inputRow}>
@@ -133,13 +135,14 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
           styles.inputContainer,
           isFocused && styles.inputFocused,
           value && styles.inputSelected,
+          customStyle && styles.inputTransparent,
         ]}>
-          <Text style={styles.inputIcon}>{icon}</Text>
+          {!customStyle && <Text style={styles.inputIcon}>{icon}</Text>}
           
           <TextInput
-            style={styles.input}
+            style={[styles.input, customStyle && styles.inputFlexible]}
             placeholder={placeholder}
-            placeholderTextColor={COLORS.textSecondary}
+            placeholderTextColor={customStyle ? '#8B9CB3' : COLORS.textSecondary}
             value={displayValue}
             onChangeText={(text) => {
               if (value) {
@@ -256,6 +259,12 @@ const styles = StyleSheet.create({
     borderColor: COLORS.success || '#22C55E',
     backgroundColor: 'rgba(34, 197, 94, 0.05)',
   },
+  inputTransparent: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingHorizontal: 0,
+    minHeight: 40,
+  },
   inputIcon: {
     fontSize: 18,
     marginRight: SPACING.xs,
@@ -265,6 +274,11 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     fontSize: 15,
     paddingVertical: 0,
+  },
+  inputFlexible: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    paddingVertical: 8,
   },
   clearButton: {
     padding: SPACING.xs,

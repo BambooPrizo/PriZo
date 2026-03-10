@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   FlatList,
   ScrollView,
   TouchableOpacity,
@@ -11,7 +10,9 @@ import {
   Linking,
   StatusBar,
   Animated,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import PriceCard from '../components/PriceCard';
@@ -155,10 +156,6 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
   };
 
   const filteredResults = getFilteredResults();
-  const lowestPriceResult = filteredResults.length > 0 
-    ? filteredResults.reduce((min, r) => r.price_min < min.price_min ? r : min, filteredResults[0])
-    : null;
-  const lowestPrice = lowestPriceResult?.price_min ?? 0;
 
   // Génération dynamique des prix basée sur les vraies données VTC d'Abidjan
   const realResults: PriceResult[] = useMemo(() => {
@@ -194,6 +191,12 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
   }, [from_label, to_label]);
 
   const displayResults = results.length > 0 ? filteredResults : realResults.filter(r => activeFilter === 'all' || r.vehicle_type === activeFilter);
+
+  // Calculer le meilleur prix basé sur les résultats affichés
+  const lowestPriceResult = displayResults.length > 0 
+    ? displayResults.reduce((min, r) => r.price_min < min.price_min ? r : min, displayResults[0])
+    : null;
+  const lowestPrice = lowestPriceResult?.price_min ?? 0;
 
   // Trouver le prix max pour calculer les économies
   const maxPrice = displayResults.length > 0 
@@ -239,7 +242,7 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* Modal d'information */}
       <PriceInfoModal 
@@ -266,8 +269,11 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
       <MapPreview
         departure={departure}
         destination={destination}
-        height={160}
+        height={140}
       />
+
+      {/* Titre section tarifs */}
+      <Text style={styles.sectionTitle}>Tarifs disponibles</Text>
 
       {/* Bandeau données anciennes */}
       {hasStaleData && <EmptyState type="stale-data" />}
@@ -415,7 +421,15 @@ const SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#FFFFFF',
+  },
+  sectionTitle: {
+    color: '#F97316',
+    fontSize: 16,
+    fontWeight: '700',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   filtersContainer: {
     flexDirection: 'row',
@@ -423,23 +437,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    borderBottomColor: '#E2E8F0',
   },
   filterChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#F8FAFC',
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#E2E8F0',
   },
   filterChipActive: {
-    backgroundColor: '#F9731620',
+    backgroundColor: '#FFF7ED',
     borderColor: '#F97316',
   },
   filterText: {
-    color: '#94A3B8',
+    color: '#64748B',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -454,13 +468,13 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#F8FAFC',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
   },
   sortButtonActive: {
-    backgroundColor: '#F9731620',
+    backgroundColor: '#FFF7ED',
   },
   content: {
     flex: 1,

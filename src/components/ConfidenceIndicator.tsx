@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   },
   progressBarContainer: {
     height: 6,
-    backgroundColor: '#334155',
+    backgroundColor: '#E2E8F0',
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -123,15 +123,15 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   tooltipContainer: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 20,
     maxWidth: 300,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#E2E8F0',
   },
   tooltipText: {
-    color: '#F1F5F9',
+    color: '#1E293B',
     fontSize: 14,
     lineHeight: 22,
     textAlign: 'center',

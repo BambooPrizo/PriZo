@@ -98,7 +98,7 @@ export function useCache<T>(): UseCacheReturn<T> {
   const clearAll = useCallback(async (): Promise<void> => {
     try {
       const keys = await AsyncStorage.getAllKeys();
-      await AsyncStorage.multiRemove(keys);
+      await Promise.all(keys.map(key => AsyncStorage.removeItem(key)));
     } catch (error) {
       console.warn('[Cache] Erreur vidage:', error);
     }

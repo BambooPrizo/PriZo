@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
   },
   modalContainer: {
-    backgroundColor: '#1E293B',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     width: '100%',
     maxWidth: 400,
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#334155',
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   reliabilityItem: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#F8FAFC',
     borderRadius: 10,
     padding: SPACING.md,
   },

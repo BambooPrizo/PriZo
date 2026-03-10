@@ -1,9 +1,14 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
+// URL de l'API - utiliser l'IP locale pour le développement mobile
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.149:3001/v1';
+
+console.log('🔌 API URL configurée:', API_URL);
+
 // Instance Axios configurée
 const api: AxiosInstance = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL || 'https://api.vtccompare.ci/v1',
+  baseURL: API_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

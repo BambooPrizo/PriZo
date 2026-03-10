@@ -1,5 +1,5 @@
 // ============================================
-// HEADER TRAJET AMÉLIORÉ - Wôrô
+// HEADER ITINÉRAIRE - Design PriZo V2
 // ============================================
 
 import React from 'react';
@@ -10,9 +10,6 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { formatTimeAgo } from '../utils';
-import { formatDistance, formatDuration } from '../utils/geocoding';
-import { isPeakHour } from '../data/vtcData';
 import { COLORS, SPACING } from '../constants';
 
 interface RouteHeaderProps {
@@ -31,269 +28,156 @@ interface RouteHeaderProps {
 const RouteHeader: React.FC<RouteHeaderProps> = ({
   fromLabel,
   toLabel,
-  fromAddress,
-  toAddress,
-  distanceKm = 6.8,
-  durationMin = 18,
-  durationPeakMin = 35,
-  lastUpdated,
   onModify,
   onBack,
 }) => {
-  const isPeak = isPeakHour();
-  const displayDuration = isPeak 
-    ? `${durationMin}-${durationPeakMin}` 
-    : `${durationMin}-${Math.round(durationMin * 1.3)}`;
-
-  // Temps depuis la dernière mise à jour
-  const updateTimeAgo = lastUpdated 
-    ? formatTimeAgo(lastUpdated) 
-    : 'À l\'instant';
-
   return (
     <View style={styles.container}>
-      {/* Ligne principale avec retour et modifier */}
-      <View style={styles.topRow}>
-        {onBack && (
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={onBack}
-            accessibilityLabel="Retour"
-            accessibilityRole="button"
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
-          </TouchableOpacity>
-        )}
-        
-        <View style={styles.flex1} />
+      {/* Titre et bouton Éditer */}
+      <View style={styles.titleRow}>
+        <View style={styles.titleLeft}>
+          {onBack && (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={onBack}
+              accessibilityLabel="Retour"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="chevron-back" size={20} color="#F97316" />
+            </TouchableOpacity>
+          )}
+          <Text style={styles.title}>ITINÉRAIRE ACTUEL</Text>
+        </View>
         
         {onModify && (
           <TouchableOpacity
-            style={styles.modifyButton}
+            style={styles.editButton}
             onPress={onModify}
-            accessibilityLabel="Modifier le trajet"
-            accessibilityRole="button"
+            accessibilityLabel="Éditer le trajet"
           >
-            <Text style={styles.modifyText}>Modifier</Text>
+            <Ionicons name="pencil" size={14} color="#FFFFFF" />
+            <Text style={styles.editButtonText}>Éditer</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Visualisation du trajet */}
-      <View style={styles.routeVisual}>
-        {/* Point de départ */}
-        <View style={styles.routeRow}>
-          <View style={styles.indicatorColumn}>
-            <View style={styles.departurePin} />
-            <View style={styles.dottedLine} />
-          </View>
-          <View style={styles.locationInfo}>
-            <Text style={styles.locationLabel}>Départ</Text>
-            <Text style={styles.locationName} numberOfLines={1}>
-              {fromLabel}
-            </Text>
-            {fromAddress && fromAddress !== fromLabel && (
-              <Text style={styles.locationAddress} numberOfLines={1}>
-                {fromAddress}
-              </Text>
-            )}
-          </View>
+      {/* Points de départ et arrivée */}
+      <View style={styles.routeContainer}>
+        {/* Départ */}
+        <View style={styles.locationRow}>
+          <View style={styles.departureDot} />
+          <Text style={styles.locationText} numberOfLines={1}>
+            {fromLabel}
+          </Text>
         </View>
 
-        {/* Point d'arrivée */}
-        <View style={styles.routeRow}>
-          <View style={styles.indicatorColumn}>
-            <View style={styles.arrivalPin} />
+        {/* Ligne de connexion */}
+        <View style={styles.connectionLine} />
+
+        {/* Arrivée */}
+        <View style={styles.locationRow}>
+          <View style={styles.arrivalDot}>
+            <Ionicons name="location" size={14} color="#EF4444" />
           </View>
-          <View style={styles.locationInfo}>
-            <Text style={styles.locationLabel}>Arrivée</Text>
-            <Text style={styles.locationName} numberOfLines={1}>
-              {toLabel}
-            </Text>
-            {toAddress && toAddress !== toLabel && (
-              <Text style={styles.locationAddress} numberOfLines={1}>
-                {toAddress}
-              </Text>
-            )}
-          </View>
+          <Text style={styles.locationText} numberOfLines={1}>
+            {toLabel}
+          </Text>
         </View>
       </View>
-
-      {/* Métriques en ligne */}
-      <View style={styles.metricsRow}>
-        <View style={styles.metricItem}>
-          <Text style={styles.metricIcon}>📏</Text>
-          <Text style={styles.metricValue}>{distanceKm.toFixed(1)} km</Text>
-        </View>
-        
-        <Text style={styles.metricDot}>•</Text>
-        
-        <View style={styles.metricItem}>
-          <Text style={styles.metricIcon}>⏱</Text>
-          <Text style={styles.metricValue}>{displayDuration} min</Text>
-        </View>
-        
-        <Text style={styles.metricDot}>•</Text>
-        
-        <View style={styles.metricItem}>
-          <Text style={styles.metricIcon}>🕐</Text>
-          <Text style={styles.metricValue}>{updateTimeAgo}</Text>
-        </View>
-      </View>
-
-      {/* Bandeau heure de pointe */}
-      {isPeak && (
-        <View style={styles.peakBanner}>
-          <Text style={styles.peakIcon}>⚠️</Text>
-          <Text style={styles.peakText}>Heure de pointe · Prix majorés</Text>
-        </View>
-      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1E293B',
-    paddingTop: SPACING.sm,
-    paddingBottom: 0,
+    backgroundColor: '#FFFFFF',
+    paddingTop: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
   },
-  topRow: {
+
+  // Titre et bouton
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+
+  titleLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.sm,
   },
-  flex1: {
-    flex: 1,
-  },
+
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#334155',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modifyButton: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: 8,
-    backgroundColor: '#33415520',
-    borderWidth: 1,
-    borderColor: '#475569',
-  },
-  modifyText: {
-    color: '#94A3B8',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  routeVisual: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-  },
-  routeRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  indicatorColumn: {
-    width: 24,
-    alignItems: 'center',
-    marginRight: SPACING.sm,
-  },
-  departurePin: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#22C55E',
-    borderWidth: 3,
-    borderColor: '#22C55E40',
-  },
-  dottedLine: {
-    width: 2,
-    height: 40,
-    marginVertical: 4,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    borderColor: '#475569',
-    borderRadius: 1,
-  },
-  arrivalPin: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#EF4444',
-    borderWidth: 3,
-    borderColor: '#EF444440',
-  },
-  locationInfo: {
-    flex: 1,
-    paddingBottom: SPACING.xs,
-  },
-  locationLabel: {
-    color: '#64748B',
-    fontSize: 11,
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  locationName: {
-    color: COLORS.textPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  locationAddress: {
-    color: '#94A3B8',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  metricsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.lg,
-    backgroundColor: '#0F172A40',
-    marginHorizontal: SPACING.lg,
-    borderRadius: 10,
-    marginTop: SPACING.xs,
-  },
-  metricItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  metricIcon: {
-    fontSize: 14,
     marginRight: 4,
   },
-  metricValue: {
-    color: COLORS.textPrimary,
+
+  title: {
+    color: '#F97316',
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
-  metricDot: {
-    color: '#475569',
-    fontSize: 12,
-    marginHorizontal: SPACING.sm,
-  },
-  peakBanner: {
+
+  editButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.xs + 2,
-    backgroundColor: '#F9731620',
-    marginTop: SPACING.md,
+    backgroundColor: '#F97316',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
   },
-  peakIcon: {
-    fontSize: 14,
-    marginRight: SPACING.xs,
-  },
-  peakText: {
-    color: COLORS.primary,
+
+  editButtonText: {
+    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '600',
+    marginLeft: 4,
+  },
+
+  // Route
+  routeContainer: {
+    paddingLeft: 4,
+  },
+
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  departureDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#F97316',
+    marginRight: 12,
+  },
+
+  connectionLine: {
+    width: 2,
+    height: 20,
+    backgroundColor: '#E2E8F0',
+    marginLeft: 4,
+    marginVertical: 4,
+  },
+
+  arrivalDot: {
+    width: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+    marginLeft: -4,
+  },
+
+  locationText: {
+    color: '#1E293B',
+    fontSize: 15,
+    fontWeight: '500',
+    flex: 1,
   },
 });
 
